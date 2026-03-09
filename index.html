@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG Simulator</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: rgba(255, 255, 255, 0.08);
+      --panel-strong: rgba(255, 255, 255, 0.12);
+      --text: #ecf2ff;
+      --muted: #a9b6d3;
+      --accent: #6ea8fe;
+      --accent-2: #7ef0c2;
+      --danger: #ff7a90;
+      --warning: #ffd166;
+      --shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      --radius: 20px;
+      --border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(110, 168, 254, 0.22), transparent 30%),
+        radial-gradient(circle at top right, rgba(126, 240, 194, 0.14), transparent 28%),
+        linear-gradient(180deg, #07101f 0%, #0d1329 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .container {
+      width: min(1300px, 94vw);
+      margin: 0 auto;
+      padding: 28px 0 48px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(110, 168, 254, 0.14);
+      border: var(--border);
+      color: #dbe8ff;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      line-height: 1.04;
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 1.03rem;
+      line-height: 1.7;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 980px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border: var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 18px 20px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .panel-title {
+      margin: 0 0 4px;
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .panel-note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    .panel-body {
+      padding: 18px 20px 20px;
+    }
+
+    textarea, input, select {
+      width: 100%;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 14px 14px;
+      outline: none;
+      font: inherit;
+      transition: 0.18s ease;
+    }
+
+    textarea:focus, input:focus, select:focus {
+      border-color: rgba(110, 168, 254, 0.7);
+      box-shadow: 0 0 0 4px rgba(110, 168, 254, 0.12);
+    }
+
+    textarea {
+      min-height: 180px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    @media (max-width: 700px) {
+      .controls {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 8px;
+      color: #d6e0f5;
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    button {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.12s ease, opacity 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .primary {
+      background: linear-gradient(135deg, var(--accent), #90b9ff);
+      color: #061224;
+      box-shadow: 0 10px 28px rgba(110, 168, 254, 0.28);
+    }
+
+    .secondary {
+      background: rgba(255,255,255,0.09);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .success {
+      background: linear-gradient(135deg, var(--accent-2), #9ff7d5);
+      color: #04251d;
+      box-shadow: 0 10px 28px rgba(126, 240, 194, 0.22);
+    }
+
+    .steps {
+      display: grid;
+      gap: 14px;
+    }
+
+    .step {
+      border-radius: 18px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 16px;
+      transition: 0.22s ease;
+      position: relative;
+    }
+
+    .step.active {
+      border-color: rgba(110, 168, 254, 0.55);
+      box-shadow: 0 0 0 3px rgba(110, 168, 254, 0.09);
+      background: rgba(110, 168, 254, 0.08);
+    }
+
+    .step.done {
+      border-color: rgba(126, 240, 194, 0.45);
+      background: rgba(126, 240, 194, 0.08);
+    }
+
+    .step-title {
+      margin: 0 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1rem;
+    }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .step-text {
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.94rem;
+      margin: 0;
+    }
+
+    .mini-boxes {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .mini-box {
+      padding: 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .mini-box h4 {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.93rem;
+    }
+
+    .chunks {
+      display: grid;
+      gap: 10px;
+    }
+
+    .chunk {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .chunk.selected {
+      border-color: rgba(126, 240, 194, 0.55);
+      background: rgba(126, 240, 194, 0.09);
+    }
+
+    .chunk-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .chunk-id {
+      font-size: 0.84rem;
+      color: #dfe9ff;
+      font-weight: 700;
+    }
+
+    .score {
+      font-size: 0.82rem;
+      color: #041d16;
+      background: var(--accent-2);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+
+    .chunk p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.92rem;
+    }
+
+    .output {
+      white-space: pre-wrap;
+      line-height: 1.65;
+      color: #e9f2ff;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 16px;
+      min-height: 150px;
+    }
+
+    .legend {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: start;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      margin-top: 4px;
+      flex: 0 0 auto;
+    }
+
+    .dot-blue { background: var(--accent); }
+    .dot-green { background: var(--accent-2); }
+    .dot-yellow { background: var(--warning); }
+    .dot-red { background: var(--danger); }
+
+    .footer-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      background: rgba(255,255,255,0.08);
+      color: #eaf1ff;
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .stat-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      background: rgba(255,255,255,0.07);
+      border: var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      min-width: 140px;
+    }
+
+    .stat .k {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 6px;
+    }
+
+    .stat .v {
+      display: block;
+      font-weight: 800;
+      font-size: 1.08rem;
+    }
+
+    code {
+      background: rgba(255,255,255,0.07);
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-size: 0.92em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="hero">
+      <span class="badge">Interactive AI Learning Demo • RAG Simulator</span>
+      <h1>See how RAG works step by step</h1>
+      <p class="subtitle">
+        This simulator shows the exact flow you described: a knowledge base is chunked, converted into simple vector-like representations,
+        the user query is embedded too, top matching chunks are retrieved, and the final prompt is augmented before the model generates an answer.
+      </p>
+    </section>
+
+    <div class="topbar">
+      <div class="stat-row">
+        <div class="stat">
+          <span class="k">Mode</span>
+          <span class="v">Educational Simulator</span>
+        </div>
+        <div class="stat">
+          <span class="k">Retrieval Method</span>
+          <span class="v">Keyword / similarity scoring</span>
+        </div>
+        <div class="stat">
+          <span class="k">Goal</span>
+          <span class="v">Understand RAG logic</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">1) Inputs</h2>
+          <p class="panel-note">Change the knowledge base and user query, then run the simulator.</p>
+        </div>
+        <div class="panel-body">
+          <div class="field">
+            <label for="kb">Knowledge Base</label>
+            <textarea id="kb">
+RAG stands for Retrieval Augmented Generation. It helps an LLM answer by first retrieving relevant external knowledge.
+
+A model has knowledge from training data, but that knowledge can be stale, incomplete, or not specific to a company’s documents.
+
+In RAG, long documents are split into smaller chunks so retrieval can be more precise and the prompt stays smaller.
+
+Each chunk is converted into an embedding, which is a numerical representation capturing semantic meaning.
+
+The user query is also converted into an embedding. The system compares the query embedding to chunk embeddings to find similar chunks.
+
+The most relevant chunks are retrieved from a vector database and appended to the prompt as context.
+
+The final augmented prompt usually contains instructions, retrieved context, and the user query.
+
+RAG helps reduce hallucination by grounding the model in retrieved information, though retrieval can still fail if chunking or search is poor.
+
+Fine-tuning changes model weights. RAG does not change the model weights; it changes the context given at inference time.
+
+Prompt engineering, retrieval quality, chunking strategy, and reranking all affect how well a RAG system performs.
+            </textarea>
+          </div>
+
+          <div class="controls">
+            <div class="field">
+              <label for="query">User Query</label>
+              <input id="query" value="How does RAG reduce hallucination and why do we chunk documents?" />
+            </div>
+            <div class="field">
+              <label for="chunkSize">Chunk Size (sentences)</label>
+              <select id="chunkSize">
+                <option value="1">1 sentence</option>
+                <option value="2" selected>2 sentences</option>
+                <option value="3">3 sentences</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="topK">Top K Retrieved Chunks</label>
+              <select id="topK">
+                <option value="2">2 chunks</option>
+                <option value="3" selected>3 chunks</option>
+                <option value="4">4 chunks</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button class="primary" id="runBtn">Run RAG Simulation</button>
+            <button class="secondary" id="stepBtn">Run Step by Step</button>
+            <button class="secondary" id="resetBtn">Reset Demo</button>
+            <button class="success" id="sampleBtn">Load PM-Friendly Sample</button>
+          </div>
+
+          <div class="footer-note">
+            This is a teaching tool, not a real vector database. It uses a simplified similarity score so you can understand the mechanics clearly.
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">2) RAG Workflow</h2>
+          <p class="panel-note">The highlighted step shows what the pipeline is currently doing.</p>
+        </div>
+        <div class="panel-body">
+          <div class="steps" id="steps">
+            <div class="step" data-step="1">
+              <h3 class="step-title"><span class="step-num">1</span>Chunk the knowledge base</h3>
+              <p class="step-text">Split long content into smaller chunks so retrieval is more precise and the prompt stays manageable.</p>
+            </div>
+            <div class="step" data-step="2">
+              <h3 class="step-title"><span class="step-num">2</span>Create embeddings for chunks</h3>
+              <p class="step-text">In real RAG, each chunk becomes a numeric vector. Here, we simulate that with important terms.</p>
+            </div>
+            <div class="step" data-step="3">
+              <h3 class="step-title"><span class="step-num">3</span>Embed the user query</h3>
+              <p class="step-text">The query is represented in the same space so we can compare it with stored chunk vectors.</p>
+            </div>
+            <div class="step" data-step="4">
+              <h3 class="step-title"><span class="step-num">4</span>Retrieve top matching chunks</h3>
+              <p class="step-text">The most similar chunks are selected from the vector store.</p>
+            </div>
+            <div class="step" data-step="5">
+              <h3 class="step-title"><span class="step-num">5</span>Augment the prompt</h3>
+              <p class="step-text">Retrieved context is appended with the user query before generation.</p>
+            </div>
+            <div class="step" data-step="6">
+              <h3 class="step-title"><span class="step-num">6</span>Generate grounded answer</h3>
+              <p class="step-text">The model answers using only the retrieved information plus the question.</p>
+            </div>
+          </div>
+
+          <div class="legend">
+            <div class="legend-item"><span class="dot dot-blue"></span><span>Blue highlight = current step being processed</span></div>
+            <div class="legend-item"><span class="dot dot-green"></span><span>Green = step completed</span></div>
+            <div class="legend-item"><span class="dot dot-yellow"></span><span>Long context can increase cost and reduce focus, so RAG retrieves only relevant parts</span></div>
+            <div class="legend-item"><span class="dot dot-red"></span><span>If retrieval is bad, the final answer can still be weak or hallucinated</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top: 20px;">
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">3) Internal State</h2>
+          <p class="panel-note">This shows what the system “knows” at each stage of retrieval and augmentation.</p>
+        </div>
+        <div class="panel-body">
+          <div class="mini-boxes">
+            <div class="mini-box">
+              <h4>Simulated Query Embedding</h4>
+              <div id="queryEmbedding" class="mono">Not generated yet.</div>
+            </div>
+
+            <div class="mini-box">
+              <h4>Augmented Prompt Sent to the LLM</h4>
+              <div id="augmentedPrompt" class="output">Nothing yet. Run the simulator.</div>
+            </div>
+
+            <div class="mini-box">
+              <h4>Generated Answer</h4>
+              <div id="finalAnswer" class="output">The answer will appear here.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">4) Chunk Store + Retrieval</h2>
+          <p class="panel-note">These are the chunked pieces of the knowledge base. The selected ones are retrieved for the final prompt.</p>
+        </div>
+        <div class="panel-body">
+          <div id="chunksContainer" class="chunks">
+            <div class="chunk">
+              <div class="chunk-top">
+                <span class="chunk-id">Waiting for simulation</span>
+              </div>
+              <p>Chunks will be displayed here after processing the knowledge base.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const kbEl = document.getElementById("kb");
+    const queryEl = document.getElementById("query");
+    const chunkSizeEl = document.getElementById("chunkSize");
+    const topKEl = document.getElementById("topK");
+    const runBtn = document.getElementById("runBtn");
+    const stepBtn = document.getElementById("stepBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const sampleBtn = document.getElementById("sampleBtn");
+
+    const queryEmbeddingEl = document.getElementById("queryEmbedding");
+    const augmentedPromptEl = document.getElementById("augmentedPrompt");
+    const finalAnswerEl = document.getElementById("finalAnswer");
+    const chunksContainer = document.getElementById("chunksContainer");
+    const steps = [...document.querySelectorAll(".step")];
+
+    let state = {
+      chunks: [],
+      queryTerms: [],
+      selectedChunks: [],
+      stepMode: false,
+      currentStep: 0,
+      dataReady: false,
+    };
+
+    const STOPWORDS = new Set([
+      "the","is","a","an","and","or","to","of","in","for","on","with","by","it","that","this","as","at","from","be",
+      "are","was","were","will","can","into","if","then","than","so","we","you","they","their","them","our","your",
+      "but","not","do","does","did","has","have","had","also","only","too","very","which","what","how","why","when",
+      "where","who","whom","about","because","through","using","used","use","each","all","any","much","more","most"
+    ]);
+
+    function resetVisualSteps() {
+      steps.forEach(s => s.classList.remove("active", "done"));
+    }
+
+    function setStep(stepNumber) {
+      resetVisualSteps();
+      steps.forEach(step => {
+        const n = Number(step.dataset.step);
+        if (n < stepNumber) step.classList.add("done");
+        if (n === stepNumber) step.classList.add("active");
+      });
+      state.currentStep = stepNumber;
+    }
+
+    function splitSentences(text) {
+      return text
+        .replace(/\n+/g, " ")
+        .split(/(?<=[.?!])\s+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
+    function chunkText(text, sentencesPerChunk) {
+      const sentences = splitSentences(text);
+      const chunks = [];
+      for (let i = 0; i < sentences.length; i += sentencesPerChunk) {
+        chunks.push(sentences.slice(i, i + sentencesPerChunk).join(" "));
+      }
+      return chunks;
+    }
+
+    function normalizeWord(word) {
+      return word
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, "")
+        .trim();
+    }
+
+    function extractTerms(text) {
+      const words = text
+        .split(/\s+/)
+        .map(normalizeWord)
+        .filter(Boolean)
+        .filter(w => !STOPWORDS.has(w))
+        .filter(w => w.length > 2);
+
+      const freq = {};
+      for (const w of words) freq[w] = (freq[w] || 0) + 1;
+
+      return Object.entries(freq)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([term, count]) => ({ term, count }));
+    }
+
+    function similarityScore(queryTerms, chunkTerms) {
+      const chunkMap = Object.fromEntries(chunkTerms.map(x => [x.term, x.count]));
+      let score = 0;
+      for (const qt of queryTerms) {
+        if (chunkMap[qt.term]) {
+          score += 2 + Math.min(chunkMap[qt.term], 3);
+        }
+      }
+
+      // light semantic hints for educational feel
+      const semanticPairs = [
+        [["hallucination"], ["grounding","retrieved","context","relevant"]],
+        [["chunk","chunking","documents"], ["smaller","retrieval","prompt","precise"]],
+        [["vector","embedding","embeddings"], ["semantic","meaning","similar","query"]],
+        [["prompt","context"], ["augmented","instructions","retrieved"]],
+      ];
+
+      for (const [left, right] of semanticPairs) {
+        const queryHas = queryTerms.some(t => left.includes(t.term)) || queryTerms.some(t => right.includes(t.term));
+        const chunkHas = chunkTerms.some(t => left.includes(t.term)) || chunkTerms.some(t => right.includes(t.term));
+        if (queryHas && chunkHas) score += 1.5;
+      }
+
+      return Number(score.toFixed(2));
+    }
+
+    function renderChunks(chunks, selectedIds = []) {
+      if (!chunks.length) {
+        chunksContainer.innerHTML = `
+          <div class="chunk">
+            <div class="chunk-top"><span class="chunk-id">No chunks found</span></div>
+            <p>Please provide some knowledge base content.</p>
+          </div>
+        `;
+        return;
+      }
+
+      chunksContainer.innerHTML = chunks.map((chunk, idx) => {
+        const selected = selectedIds.includes(idx) ? "selected" : "";
+        const terms = chunk.terms.slice(0, 8).map(t => `<span class="pill">${t.term}</span>`).join("");
+        return `
+          <div class="chunk ${selected}">
+            <div class="chunk-top">
+              <span class="chunk-id">Chunk ${idx + 1}</span>
+              <span class="score">Score: ${chunk.score ?? 0}</span>
+            </div>
+            <p>${escapeHtml(chunk.text)}</p>
+            <div style="margin-top:10px;">${terms}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function prepareData() {
+      const kb = kbEl.value.trim();
+      const query = queryEl.value.trim();
+      const chunkSize = Number(chunkSizeEl.value);
+      const topK = Number(topKEl.value);
+
+      const rawChunks = chunkText(kb, chunkSize);
+      const chunks = rawChunks.map((text, index) => ({
+        id: index,
+        text,
+        terms: extractTerms(text),
+        score: 0
+      }));
+
+      const queryTerms = extractTerms(query);
+
+      chunks.forEach(chunk => {
+        chunk.score = similarityScore(queryTerms, chunk.terms);
+      });
+
+      const selectedChunks = [...chunks]
+        .sort((a, b) => b.score - a.score)
+        .slice(0, topK)
+        .filter(c => c.score > 0);
+
+      state = {
+        ...state,
+        chunks,
+        queryTerms,
+        selectedChunks,
+        dataReady: true
+      };
+    }
+
+    function buildAugmentedPrompt() {
+      const query = queryEl.value.trim();
+      const context = state.selectedChunks
+        .map((c, i) => `[Context ${i + 1}] ${c.text}`)
+        .join("\n\n");
+
+      return `SYSTEM:
+Answer the user using only the retrieved context below. If the context is missing something, say so clearly.
+
+RETRIEVED CONTEXT:
+${context || "No relevant chunks retrieved."}
+
+USER QUERY:
+${query}
+
+TASK:
+Provide a grounded answer based on the context.`;
+    }
+
+    function buildAnswer() {
+      const query = queryEl.value.trim().toLowerCase();
+      const contextText = state.selectedChunks.map(c => c.text).join(" ");
+      if (!state.selectedChunks.length) {
+        return `I could not retrieve relevant chunks from the knowledge base, so a real RAG system would either return a weak answer or say it lacks enough grounded context.
+
+This demonstrates an important RAG principle:
+- retrieval quality matters
+- if retrieval fails, generation quality drops
+- RAG reduces hallucination only when the right context is found`;
+      }
+
+      const points = [];
+
+      if (query.includes("hallucination")) {
+        points.push("RAG reduces hallucination by grounding the model in retrieved external context instead of relying only on training memory.");
+      }
+      if (query.includes("chunk")) {
+        points.push("Documents are chunked so retrieval can target small relevant sections rather than passing the whole knowledge base into the prompt.");
+      }
+      if (query.includes("prompt") || query.includes("context")) {
+        points.push("This keeps the prompt more focused and avoids stuffing too much irrelevant text into the model context.");
+      }
+      if (query.includes("embedding") || query.includes("vector")) {
+        points.push("Embeddings let both the chunks and the query be represented in a comparable vector-like space for similarity search.");
+      }
+
+      if (points.length === 0) {
+        points.push("Based on the retrieved chunks, RAG works by retrieving relevant knowledge first and then augmenting the prompt before generation.");
+      }
+
+      const supporting = summarizeSupportingFacts(contextText);
+      return `${points.map((p, i) => `${i + 1}. ${p}`).join("\n")}
+
+Grounded support from retrieved context:
+${supporting}`;
+    }
+
+    function summarizeSupportingFacts(text) {
+      const sentences = splitSentences(text).slice(0, 4);
+      return sentences.map((s, i) => `- ${s}`).join("\n");
+    }
+
+    function runFullSimulation() {
+      prepareData();
+      setStep(1);
+      renderChunks(state.chunks);
+
+      setTimeout(() => setStep(2), 120);
+      setTimeout(() => {
+        queryEmbeddingEl.textContent = state.queryTerms.length
+          ? state.queryTerms.slice(0, 12).map(t => `${t.term}:${t.count}`).join(" | ")
+          : "No meaningful terms extracted.";
+      }, 180);
+
+      setTimeout(() => setStep(3), 250);
+      setTimeout(() => setStep(4), 380);
+      setTimeout(() => {
+        renderChunks(state.chunks, state.selectedChunks.map(c => c.id));
+      }, 450);
+
+      setTimeout(() => setStep(5), 560);
+      setTimeout(() => {
+        augmentedPromptEl.textContent = buildAugmentedPrompt();
+      }, 620);
+
+      setTimeout(() => setStep(6), 740);
+      setTimeout(() => {
+        finalAnswerEl.textContent = buildAnswer();
+        steps.forEach(s => s.classList.add("done"));
+        steps[steps.length - 1].classList.add("active");
+      }, 860);
+    }
+
+    function resetAll() {
+      state = {
+        chunks: [],
+        queryTerms: [],
+        selectedChunks: [],
+        stepMode: false,
+        currentStep: 0,
+        dataReady: false
+      };
+      resetVisualSteps();
+      queryEmbeddingEl.textContent = "Not generated yet.";
+      augmentedPromptEl.textContent = "Nothing yet. Run the simulator.";
+      finalAnswerEl.textContent = "The answer will appear here.";
+      chunksContainer.innerHTML = `
+        <div class="chunk">
+          <div class="chunk-top">
+            <span class="chunk-id">Waiting for simulation</span>
+          </div>
+          <p>Chunks will be displayed here after processing the knowledge base.</p>
+        </div>
+      `;
+    }
+
+    function runSingleStep() {
+      if (!state.dataReady || state.currentStep === 0 || state.currentStep >= 6) {
+        prepareData();
+      }
+
+      const next = state.currentStep + 1;
+      setStep(next);
+
+      if (next === 1) {
+        renderChunks(state.chunks);
+      }
+
+      if (next === 2) {
+        // chunk embeddings are visible through chunk term pills
+        renderChunks(state.chunks);
+      }
+
+      if (next === 3) {
+        queryEmbeddingEl.textContent = state.queryTerms.length
+          ? state.queryTerms.slice(0, 12).map(t => `${t.term}:${t.count}`).join(" | ")
+          : "No meaningful terms extracted.";
+      }
+
+      if (next === 4) {
+        renderChunks(state.chunks, state.selectedChunks.map(c => c.id));
+      }
+
+      if (next === 5) {
+        augmentedPromptEl.textContent = buildAugmentedPrompt();
+      }
+
+      if (next === 6) {
+        finalAnswerEl.textContent = buildAnswer();
+      }
+    }
+
+    function loadSample() {
+      kbEl.value = `A large language model has two broad sources of knowledge: parametric memory from training and temporary working context from the prompt.
+
+Hallucination happens when the model generates plausible sounding text without enough grounding in reliable information.
+
+RAG is useful when company knowledge changes often, when documents are large, or when you do not want to fine-tune the base model.
+
+In a RAG system, documents are split into chunks before indexing. Smaller chunks usually improve retrieval precision, though chunks that are too small may lose context.
+
+Each chunk is converted into an embedding and stored in a vector database for similarity search.
+
+When a user asks a question, the query is embedded too. The system compares that query vector with stored chunk vectors.
+
+The top relevant chunks are retrieved and inserted into the final prompt. This is why it is called retrieval augmented generation.
+
+RAG improves answer quality because the model sees focused relevant context rather than the entire knowledge base.
+
+Fine-tuning updates model weights, while RAG updates the context available at inference time.
+
+A strong RAG system depends on chunking strategy, embedding quality, retrieval quality, and prompt design.`;
+
+      queryEl.value = "Explain RAG to a PM: why do we chunk documents and how does RAG reduce hallucination?";
+      chunkSizeEl.value = "2";
+      topKEl.value = "3";
+      resetAll();
+    }
+
+    runBtn.addEventListener("click", runFullSimulation);
+    stepBtn.addEventListener("click", runSingleStep);
+    resetBtn.addEventListener("click", resetAll);
+    sampleBtn.addEventListener("click", loadSample);
+
+    // initialize
+    resetAll();
+  </script>
+</body>
+</html>
